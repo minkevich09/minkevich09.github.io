@@ -28,7 +28,7 @@
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <i class="fa-solid fa-print text-2xl text-blue-400"></i>
-                <h1 class="text-xl font-bold tracking-wide">PrintFlow Pro <span class="text-xs font-normal text-slate-400">| Широкоформатная печать</span></h1>
+                <h1 class="text-xl font-bold tracking-wide">Транссфера+ <span class="text-xs font-normal text-slate-400">| Широкоформатная печать</span></h1>
             </div>
             <div class="text-sm text-slate-400">
                 <i class="fa-regular fa-clock mr-1"></i> <span id="current-date"></span>
