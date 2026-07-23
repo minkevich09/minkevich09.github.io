@@ -28,7 +28,7 @@
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <i class="fa-solid fa-print text-2xl text-blue-400"></i>
-                <h1 class="text-xl font-bold tracking-wide">Транссфера+ <span class="text-xs font-normal text-slate-400">| Широкоформатная печать</span></h1>
+                <h1 class="text-xl font-bold tracking-wide">PrintFlow Pro <span class="text-xs font-normal text-slate-400">| Широкоформатная печать</span></h1>
             </div>
             <div class="text-sm text-slate-400">
                 <i class="fa-regular fa-clock mr-1"></i> <span id="current-date"></span>
@@ -77,7 +77,7 @@
                                 <select id="order-client" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                                     <!-- Заполняется динамически -->
                                 </select>
-                                <button type="button" onclick="appOpenModal('modal-add-client')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-lg transition" title="Быстро добавить контрагента">
+                                <button type="button" onclick="openAddClientModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-lg transition" title="Быстро добавить контрагента">
                                     <i class="fa-solid fa-user-plus"></i>
                                 </button>
                             </div>
@@ -383,7 +383,7 @@
                     <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <i class="fa-solid fa-users text-blue-600"></i> База контрагентов
                     </h2>
-                    <button onclick="appOpenModal('modal-add-client')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition flex items-center gap-2">
+                    <button onclick="openAddClientModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Новый контрагент
                     </button>
                 </div>
@@ -396,6 +396,7 @@
                                 <th class="p-3">Телефон</th>
                                 <th class="p-3">Email</th>
                                 <th class="p-3">Замечения / Реквизиты</th>
+                                <th class="p-3 text-right">Действия</th>
                             </tr>
                         </thead>
                         <tbody id="clients-table-body" class="divide-y divide-slate-100">
@@ -408,14 +409,15 @@
 
     </main>
 
-    <!-- МОДАЛЬНОЕ ОКНО: Добавление контрагента -->
+    <!-- МОДАЛЬНОЕ ОКНО: Добавление/Редактирование контрагента -->
     <div id="modal-add-client" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 relative">
             <button onclick="appCloseModal('modal-add-client')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
-            <h3 class="text-lg font-bold text-slate-800 mb-4">Добавить контрагента</h3>
-            <form onsubmit="handleAddClient(event)" class="space-y-4">
+            <h3 id="modal-client-title" class="text-lg font-bold text-slate-800 mb-4">Добавить контрагента</h3>
+            <form onsubmit="handleSaveClient(event)" class="space-y-4">
+                <input type="hidden" id="edit-client-id" value="">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Название / ФИО *</label>
                     <input type="text" id="new-client-name" required class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500">
@@ -1304,7 +1306,7 @@
             `).join('');
         }
 
-        // Обработчики добавления
+        // Обработчики добавления материалов, станков, настроек
         function handleAddMaterial(e) {
             e.preventDefault();
             const materials = db.getMaterials();
@@ -1365,7 +1367,7 @@
             populateSelects();
         }
 
-        // Удаление элементов
+        // Удаление элементов склада
         function deleteMaterial(id) {
             let materials = db.getMaterials().filter(m => m.id !== id);
             db.saveMaterials(materials);
@@ -1387,31 +1389,86 @@
             populateSelects();
         }
 
-        // Добавление контрагента
-        function handleAddClient(e) {
-            e.preventDefault();
-            const clients = db.getClients();
+        // КОНТРАГЕНТЫ: Модальное окно (Создание / Редактирование)
+        function openAddClientModal() {
+            document.getElementById('modal-client-title').innerText = "Добавить контрагента";
+            document.getElementById('edit-client-id').value = "";
+            document.getElementById('new-client-name').value = "";
+            document.getElementById('new-client-phone').value = "";
+            document.getElementById('new-client-email').value = "";
+            document.getElementById('new-client-notes').value = "";
+            appOpenModal('modal-add-client');
+        }
 
-            const newClient = {
-                id: Date.now(),
+        function openEditClientModal(id) {
+            const clients = db.getClients();
+            const client = clients.find(c => c.id === id);
+            if (!client) return;
+
+            document.getElementById('modal-client-title').innerText = "Редактировать контрагента";
+            document.getElementById('edit-client-id').value = client.id;
+            document.getElementById('new-client-name').value = client.name;
+            document.getElementById('new-client-phone').value = client.phone !== '-' ? client.phone : '';
+            document.getElementById('new-client-email').value = client.email !== '-' ? client.email : '';
+            document.getElementById('new-client-notes').value = client.notes !== '-' ? client.notes : '';
+
+            appOpenModal('modal-add-client');
+        }
+
+        // Сохранение / Обновление контрагента
+        function handleSaveClient(e) {
+            e.preventDefault();
+            let clients = db.getClients();
+            const editId = document.getElementById('edit-client-id').value;
+
+            const clientData = {
                 name: document.getElementById('new-client-name').value,
                 phone: document.getElementById('new-client-phone').value || '-',
                 email: document.getElementById('new-client-email').value || '-',
                 notes: document.getElementById('new-client-notes').value || '-'
             };
 
-            clients.push(newClient);
-            db.saveClients(clients);
+            if (editId) {
+                // Редактирование
+                clients = clients.map(c => c.id == editId ? { ...c, ...clientData } : c);
+            } else {
+                // Создание
+                const newClient = {
+                    id: Date.now(),
+                    ...clientData
+                };
+                clients.push(newClient);
+            }
 
+            db.saveClients(clients);
             appCloseModal('modal-add-client');
             renderClients();
             populateSelects();
-            document.getElementById('order-client').value = newClient.name;
+
+            if (!editId) {
+                document.getElementById('order-client').value = clientData.name;
+            }
         }
 
+        // Удаление контрагента
+        function deleteClient(id) {
+            if (!confirm('Вы действительно хотите удалить этого контрагента?')) return;
+
+            let clients = db.getClients().filter(c => c.id !== id);
+            db.saveClients(clients);
+            renderClients();
+            populateSelects();
+        }
+
+        // Отрисовка контрагентов
         function renderClients() {
             const clients = db.getClients();
             const tbody = document.getElementById('clients-table-body');
+
+            if (clients.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Список контрагентов пуст</td></tr>`;
+                return;
+            }
 
             tbody.innerHTML = clients.map(c => `
                 <tr class="hover:bg-slate-50">
@@ -1419,6 +1476,14 @@
                     <td class="p-3 text-slate-600">${c.phone}</td>
                     <td class="p-3 text-slate-600">${c.email}</td>
                     <td class="p-3 text-xs text-slate-500">${c.notes}</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="openEditClientModal(${c.id})" class="text-blue-600 hover:text-blue-800 text-xs font-medium cursor-pointer" title="Редактировать">
+                            <i class="fa-solid fa-pen"></i> Редактировать
+                        </button>
+                        <button onclick="deleteClient(${c.id})" class="text-red-500 hover:text-red-700 text-xs font-medium cursor-pointer" title="Удалить">
+                            <i class="fa-solid fa-trash-can"></i> Удалить
+                        </button>
+                    </td>
                 </tr>
             `).join('');
         }
